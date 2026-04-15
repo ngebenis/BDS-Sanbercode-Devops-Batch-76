@@ -1,0 +1,7 @@
+Data Peserta Bootcamp Digital Skill Devops
+1. Nama: Nge Beni Santoso
+2. Email: benisantoso72@gmail.com
+3. Sistem Operasi yang digunakan: Windows 11 Pro
+4. Akun Gitlab/Github: ngebenis
+5. Akun Telegram: @B3N1ID
+6. Bahasa Pemrograman/Stack Yang dikuasai: PHP, Python, Bash Script
