@@ -15,6 +15,6 @@ jobs:
 
       - name: Tampilkan pesan
         run: echo "Pipeline berhasil dijalankan"
-
+ 
       - name: Gunakan Secret
-        run: echo "Secret key adalah $MY_SECRET_KEY"
+        run: echo "Secret key adalah ${{ secrets.MY_SECRET_KEY }}"
