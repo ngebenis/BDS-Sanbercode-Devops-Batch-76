@@ -1,0 +1,25 @@
+name: Generate Artifact
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create dist folder and index.html
+        run: |
+          mkdir -p dist
+          echo "Ini adalah hasil build otomatis Artifact" > dist/index.html
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hasil-build-web
+          path: dist
+          retention-days: 7
