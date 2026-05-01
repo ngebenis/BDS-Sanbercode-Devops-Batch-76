@@ -55,4 +55,4 @@ jobs:
           script: |
             echo "Memulai proses restart service di VPS..."
             # Di dunia nyata, ini berisi perintah pm2 restart atau docker restart
-            echo "Deployment Production Sukses!"
+            echo "Deployment Production Sukses untuk penambahan baru!"
