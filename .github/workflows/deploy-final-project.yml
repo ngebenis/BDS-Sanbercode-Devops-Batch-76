@@ -1,13 +1,12 @@
-name: Deploy VPS Monitor
+name: Deploy Final Project
 
 on:
   push:
-    branches: [ main ] # Menjalankan action saat ada push ke branch main
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -20,46 +19,27 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             TARGET_DIR="/var/www/html/vps-monitor"
-            TEMP_DIR="/tmp/final_project_build"
-
-            # 1. Bersihkan dan Clone dengan paksa
-            sudo rm -rf $TEMP_DIR
-            git clone --depth 1 https://github.com/ngebenis/BDS-Sanbercode-Devops-Batch-76.git $TEMP_DIR
             
-            # 2. DIAGNOSA: Tampilkan struktur folder yang berhasil di-clone
-            echo "--- Struktur Folder Hasil Clone ---"
-            ls -R $TEMP_DIR | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /'
-            echo "------------------------------------"
-
-            # 3. Cari file server.js (Case-Insensitive)
-            REAL_PROJECT_PATH=$(find $TEMP_DIR -iname "server.js" -not -path "*/node_modules/*" -exec dirname {} \; | head -n 1)
-
-            if [ -z "$REAL_PROJECT_PATH" ]; then
-              echo "Coba cari manual di folder Final-Project..."
-              if [ -d "$TEMP_DIR/Final-Project" ]; then
-                 REAL_PROJECT_PATH="$TEMP_DIR/Final-Project"
-              else
-                 echo "CRITICAL ERROR: File server.js TIDAK DITEMUKAN di mana pun!"
-                 exit 1
-              fi
-            fi
-
-            echo "Proyek ditemukan di: $REAL_PROJECT_PATH"
-
-            # 4. Siapkan folder tujuan
+            # 1. Masuk ke direktori target
             sudo mkdir -p $TARGET_DIR
             sudo chown -R $USER:$USER $TARGET_DIR
-            
-            # 5. Salin isi folder tersebut ke tujuan
-            cp -r $REAL_PROJECT_PATH/. $TARGET_DIR/
-
-            # 6. Jalankan Aplikasi
             cd $TARGET_DIR
+
+            # 2. Update kode (Karena file sudah di root, cukup pull biasa)
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/ngebenis/BDS-Sanbercode-Devops-Batch-76.git .
+            else
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+
+            # 3. Bersihkan folder tugas agar tidak mengganggu RAM/Storage
+            rm -rf Tugas-* Final-Project/
+
+            # 4. Install dependensi & Restart
+            # --omit=dev menjaga penggunaan RAM tetap hemat (< 200MB)
             npm install --omit=dev
             
-            # Gunakan PM2 untuk restart
+            # Restart menggunakan PM2
             pm2 delete vps-monitor || true
             pm2 start server.js --name "vps-monitor" --max-memory-restart 150M
-
-            # 7. Cleanup
-            rm -rf $TEMP_DIR

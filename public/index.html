@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VPS Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: #2d2d2d; padding: 20px; border-radius: 10px; text-align: center; }
+        h2 { margin-top: 0; color: #00ff88; }
+        .stat { font-size: 2em; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔧 VPS System Monitor</h1>
+    <div class="grid">
+        <div class="card">
+            <h2>CPU Usage</h2>
+            <canvas id="cpuChart"></canvas>
+            <div id="cpuText" class="stat">0%</div>
+        </div>
+        <div class="card">
+            <h2>RAM Usage</h2>
+            <canvas id="ramChart"></canvas>
+            <div id="ramText" class="stat">0 GB</div>
+        </div>
+        <div class="card">
+            <h2>Uptime</h2>
+            <div id="uptimeText" style="font-size: 3em; margin-top: 40px;">-</div>
+        </div>
+    </div>
+
+    <script>
+        const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+        const ramCtx = document.getElementById('ramChart').getContext('2d');
+
+        // Chart Konfigurasi (Real-time Line Chart untuk CPU)
+        const cpuChart = new Chart(cpuCtx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'CPU %', data: [], borderColor: '#00ff88', tension: 0.4 }] },
+            options: { scales: { y: { min: 0, max: 100 } } }
+        });
+
+        // Chart Konfigurasi (Doughnut untuk RAM)
+        const ramChart = new Chart(ramCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Used', 'Free'],
+                datasets: [{ data: [0, 100], backgroundColor: ['#00ff88', '#444'] }]
+            }
+        });
+
+        async function updateStats() {
+            const res = await fetch('/api/stats');
+            const data = await res.json();
+
+            // Update CPU
+            document.getElementById('cpuText').innerText = data.cpu.toFixed(2) + '%';
+            cpuChart.data.labels.push('');
+            cpuChart.data.datasets[0].data.push(data.cpu);
+            if(cpuChart.data.labels.length > 10) {
+                cpuChart.data.labels.shift();
+                cpuChart.data.datasets[0].data.shift();
+            }
+            cpuChart.update();
+
+            // Update RAM
+            document.getElementById('ramText').innerText = data.ram.used.toFixed(2) + ' GB';
+            ramChart.data.datasets[0].data = [data.ram.percent, 100 - data.ram.percent];
+            ramChart.update();
+
+            // Update Uptime
+            document.getElementById('uptimeText').innerText = data.uptime;
+        }
+
+        setInterval(updateStats, 2000); // Update setiap 2 detik
+        updateStats();
+    </script>
+</body>
+</html>
