@@ -22,39 +22,44 @@ jobs:
             TARGET_DIR="/var/www/html/vps-monitor"
             TEMP_DIR="/tmp/final_project_build"
 
-            # 1. Bersihkan dan Clone
+            # 1. Bersihkan dan Clone dengan paksa
             sudo rm -rf $TEMP_DIR
             git clone --depth 1 https://github.com/ngebenis/BDS-Sanbercode-Devops-Batch-76.git $TEMP_DIR
             
-            # 2. Cari lokasi folder yang berisi server.js secara otomatis
-            # Ini akan mencari folder mana pun yang mengandung file utama kita
-            REAL_PROJECT_PATH=$(find $TEMP_DIR -name "server.js" -not -path "*/node_modules/*" -exec dirname {} \; | head -n 1)
+            # 2. DIAGNOSA: Tampilkan struktur folder yang berhasil di-clone
+            echo "--- Struktur Folder Hasil Clone ---"
+            ls -R $TEMP_DIR | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//--/g' -e 's/^/   /'
+            echo "------------------------------------"
+
+            # 3. Cari file server.js (Case-Insensitive)
+            REAL_PROJECT_PATH=$(find $TEMP_DIR -iname "server.js" -not -path "*/node_modules/*" -exec dirname {} \; | head -n 1)
 
             if [ -z "$REAL_PROJECT_PATH" ]; then
-              echo "CRITICAL ERROR: Folder proyek tidak ditemukan di repository!"
-              exit 1
+              echo "Coba cari manual di folder Final-Project..."
+              if [ -d "$TEMP_DIR/Final-Project" ]; then
+                 REAL_PROJECT_PATH="$TEMP_DIR/Final-Project"
+              else
+                 echo "CRITICAL ERROR: File server.js TIDAK DITEMUKAN di mana pun!"
+                 exit 1
+              fi
             fi
 
             echo "Proyek ditemukan di: $REAL_PROJECT_PATH"
 
-            # 3. Siapkan folder tujuan
+            # 4. Siapkan folder tujuan
             sudo mkdir -p $TARGET_DIR
             sudo chown -R $USER:$USER $TARGET_DIR
             
-            # 4. Salin isi folder tersebut ke tujuan
-            # Menggunakan -r dan memastikan path diakhiri /. agar hanya isinya yang tersalin
+            # 5. Salin isi folder tersebut ke tujuan
             cp -r $REAL_PROJECT_PATH/. $TARGET_DIR/
 
-            # 5. Jalankan Aplikasi
+            # 6. Jalankan Aplikasi
             cd $TARGET_DIR
-            if [ -f "package.json" ]; then
-              npm install --omit=dev
-              pm2 delete vps-monitor || true
-              pm2 start server.js --name "vps-monitor" --max-memory-restart 150M
-            else
-              echo "ERROR: package.json tetap tidak ditemukan di $TARGET_DIR"
-              exit 1
-            fi
+            npm install --omit=dev
+            
+            # Gunakan PM2 untuk restart
+            pm2 delete vps-monitor || true
+            pm2 start server.js --name "vps-monitor" --max-memory-restart 150M
 
-            # 6. Cleanup
+            # 7. Cleanup
             rm -rf $TEMP_DIR
