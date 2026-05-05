@@ -19,37 +19,36 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # 1. Persiapkan folder sementara dan folder tujuan
-            TEMP_DIR="/tmp/deploy_vps_monitor"
             TARGET_DIR="/var/www/html/vps-monitor"
+            TEMP_DIR="/tmp/final_project_build"
+
+            # 1. Bersihkan sisa-sisa kegagalan sebelumnya
+            sudo rm -rf $TEMP_DIR
+            mkdir -p $TEMP_DIR
             
-            sudo mkdir -p $TARGET_DIR
-            sudo chown -R $USER:$USER $TARGET_DIR
-            rm -rf $TEMP_DIR
-            
-            # 2. Clone repository ke folder sementara
+            # 2. Clone repository ke folder temporary
             git clone --depth 1 https://github.com/ngebenis/BDS-Sanbercode-Devops-Batch-76.git $TEMP_DIR
             
-            # 3. Bersihkan folder tujuan (opsional, agar benar-benar fresh)
-            # Simpan node_modules agar npm install lebih cepat
-            find $TARGET_DIR -maxdepth 1 -not -name 'node_modules' -not -name '.' -exec rm -rf {} +
-
-            # 4. Pindahkan HANYA isi dari Final-Project ke folder tujuan
-            cp -r $TEMP_DIR/Final-Project/. $TARGET_DIR/
-            
-            # 5. Pindah ke folder tujuan dan Install
+            # 3. Masuk ke folder target
+            sudo mkdir -p $TARGET_DIR
+            sudo chown -R $USER:$USER $TARGET_DIR
             cd $TARGET_DIR
+
+            # 4. PINDAHKAN FILE (Gunakan rsync agar lebih stabil daripada cp)
+            # Kita pindahkan semua file dari subfolder Final-Project ke root vps-monitor
+            rsync -av $TEMP_DIR/Final-Project/ .
             
-            # Hapus file yang tidak diinginkan jika terbawa (double check)
-            rm -f README.md
-            rm -rf .git .github
-            
-            # Jalankan NPM
+            # 5. Verifikasi: Pastikan package.json ada sebelum lanjut
+            if [ ! -f "package.json" ]; then
+              echo "CRITICAL ERROR: package.json tidak ditemukan setelah copy!"
+              ls -la
+              exit 1
+            fi
+
+            # 6. Install & Run
             npm install --omit=dev
-            
-            # 6. Restart dengan PM2
             pm2 delete vps-monitor || true
             pm2 start server.js --name "vps-monitor" --max-memory-restart 150M
-            
-            # 7. Bersihkan folder sementara
+
+            # 7. Cleanup
             rm -rf $TEMP_DIR
