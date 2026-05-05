@@ -15,31 +15,41 @@ jobs:
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # 1. Masuk dan pastikan izin folder benar
-            sudo mkdir -p /var/www/html/vps-monitor
-            sudo chown -R $USER:$USER /var/www/html/vps-monitor
-            cd /var/www/html/vps-monitor
+            # 1. Persiapkan folder sementara dan folder tujuan
+            TEMP_DIR="/tmp/deploy_vps_monitor"
+            TARGET_DIR="/var/www/html/vps-monitor"
+            
+            sudo mkdir -p $TARGET_DIR
+            sudo chown -R $USER:$USER $TARGET_DIR
+            rm -rf $TEMP_DIR
+            
+            # 2. Clone repository ke folder sementara
+            git clone --depth 1 https://github.com/ngebenis/BDS-Sanbercode-Devops-Batch-76.git $TEMP_DIR
+            
+            # 3. Bersihkan folder tujuan (opsional, agar benar-benar fresh)
+            # Simpan node_modules agar npm install lebih cepat
+            find $TARGET_DIR -maxdepth 1 -not -name 'node_modules' -not -name '.' -exec rm -rf {} +
 
-            # 2. Update kode dari GitHub
-            if [ ! -d ".git" ]; then
-              git clone https://github.com/ngebenis/BDS-Sanbercode-Devops-Batch-76.git .
-            else
-              git fetch origin main
-              git reset --hard origin/main
-              git clean -fd
-            fi
-
-            # 3. Pindah ke sub-folder Final-Project (Sesuai struktur folder Anda)
-            cd Final-Project
-
-            # 4. Install & Jalankan
+            # 4. Pindahkan HANYA isi dari Final-Project ke folder tujuan
+            cp -r $TEMP_DIR/Final-Project/. $TARGET_DIR/
+            
+            # 5. Pindah ke folder tujuan dan Install
+            cd $TARGET_DIR
+            
+            # Hapus file yang tidak diinginkan jika terbawa (double check)
+            rm -f README.md
+            rm -rf .git .github
+            
+            # Jalankan NPM
             npm install --omit=dev
             
-            # Restart dengan PM2
-            # Kita arahkan PM2 untuk menjalankan server.js yang ada di folder ini
+            # 6. Restart dengan PM2
             pm2 delete vps-monitor || true
             pm2 start server.js --name "vps-monitor" --max-memory-restart 150M
+            
+            # 7. Bersihkan folder sementara
+            rm -rf $TEMP_DIR
